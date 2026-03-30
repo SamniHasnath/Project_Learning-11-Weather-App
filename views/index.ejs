@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WeatherView Pro</title>
+    <link rel="stylesheet" href="/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body class="<%= weatherInfo ? weatherInfo.main : 'default-bg' %>">
+
+    <header class="navbar">
+        <div class="logo">🌦️ WeatherView</div>
+        <button id="theme-toggle" class="btn-secondary">🌙 Mode</button>
+    </header>
+
+    <div class="main-layout">
+        <aside class="sidebar glass">
+            <h3>Recent</h3>
+            <ul id="history-list"></ul>
+            <button onclick="localStorage.clear(); location.reload();" class="btn-clear">Clear History</button>
+        </aside>
+
+        <main class="content">
+            <div class="search-box">
+                <form action="/weather" method="POST" id="search-form">
+                    <input type="text" name="city" id="city-input" placeholder="Search city..." required>
+                    <button type="submit">Search</button>
+                </form>
+                <button id="geo-btn" title="Auto-detect location">📍</button>
+            </div>
+
+            <% if (error) { %> <div class="error-box"><%= error %></div> <% } %>
+
+            <% if (weatherInfo) { %>
+                <div class="glass-card main-card">
+                    <h2><%= weatherInfo.city %>, <%= weatherInfo.country %></h2>
+                    <div class="hero-weather">
+                        <img src="https://openweathermap.org/img/wn/<%= weatherInfo.icon %>@4x.png">
+                        <div class="temp-display"><%= weatherInfo.temp %>°C</div>
+                    </div>
+                    <p class="desc-text"><%= weatherInfo.description %></p>
+
+                    <div class="metrics-grid">
+                        <div class="metric"><span>Humidity</span><strong><%= weatherInfo.humidity %>%</strong></div>
+                        <div class="metric"><span>Wind</span><strong><%= weatherInfo.wind %> m/s</strong></div>
+                        <div class="metric"><span>Feels Like</span><strong><%= weatherInfo.feels_like %>°C</strong></div>
+                        <div class="metric"><span>Pressure</span><strong><%= weatherInfo.pressure %> hPa</strong></div>
+                    </div>
+                </div>
+
+                <h3 class="forecast-heading">Weekly Forecast</h3>
+                <div class="forecast-row">
+                    <% weatherInfo.daily.forEach(day => { %>
+                        <div class="f-item glass">
+                            <p><%= new Date(day.dt * 1000).toLocaleDateString('en', {weekday: 'short'}) %></p>
+                            <img src="https://openweathermap.org/img/wn/<%= day.weather[0].icon %>.png">
+                            <strong><%= Math.round(day.main.temp) %>°</strong>
+                        </div>
+                    <% }) %>
+                </div>
+            <% } %>
+        </main>
+    </div>
+
+    <script>
+        // Dark Mode
+        const btn = document.getElementById('theme-toggle');
+        btn.onclick = () => {
+            document.body.classList.toggle('dark-mode');
+            localStorage.setItem('dark', document.body.classList.contains('dark-mode'));
+        };
+        if(localStorage.getItem('dark') === 'true') document.body.classList.add('dark-mode');
+
+        // History
+        const form = document.getElementById('search-form');
+        form.onsubmit = () => {
+            let h = JSON.parse(localStorage.getItem('h') || '[]');
+            let val = document.getElementById('city-input').value;
+            if(!h.includes(val)) h.push(val);
+            localStorage.setItem('h', JSON.stringify(h.slice(-5)));
+        };
+        document.getElementById('history-list').innerHTML = JSON.parse(localStorage.getItem('h') || '[]').map(c => `<li>${c}</li>`).join('');
+
+        // Geo Location
+        document.getElementById('geo-btn').onclick = () => {
+            navigator.geolocation.getCurrentPosition(async (p) => {
+                const res = await fetch('/weather/coords', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({lat: p.coords.latitude, lon: p.coords.longitude})
+                });
+                if(res.ok) window.location.reload();
+            });
+        };
+    </script>
+</body>
+</html>
